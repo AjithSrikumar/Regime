@@ -41,14 +41,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow frontend origin
-origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,https://regime.vercel.app").split(",")
+# CORS — reads ALLOWED_ORIGINS env var; defaults to localhost + wildcard for dev
+_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+if _origins_env:
+    origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
+else:
+    # Dev default: allow all (tighten by setting ALLOWED_ORIGINS in production)
+    origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=origins,
+    allow_credentials=len(origins) > 0 and origins != ["*"],
+    allow_methods=["GET"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 app.include_router(regime.router)

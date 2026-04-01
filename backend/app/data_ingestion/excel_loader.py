@@ -21,9 +21,36 @@ from sqlalchemy import text
 from ..models import MarketData, Factors, Regime, Allocation, Performance
 from ..engines.factor_engine import score_to_confidence
 
-EXCEL_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "NSE_RegimeModel_v2.xlsx"
-)
+FILENAME = "NSE_RegimeModel_v2.xlsx"
+
+def _find_excel() -> str:
+    """
+    Locate the Excel file across different deployment layouts:
+      - EXCEL_PATH env var (explicit override, highest priority)
+      - Same dir as this file (backend/app/data_ingestion/)
+      - backend/ directory
+      - Repo root (3 levels up from this file)
+      - Current working directory
+    """
+    if env_path := os.getenv("EXCEL_PATH"):
+        return env_path
+
+    candidates = [
+        os.path.join(os.path.dirname(__file__), FILENAME),               # alongside loader
+        os.path.join(os.path.dirname(__file__), "..", "..", FILENAME),    # backend/
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", FILENAME),  # repo root
+        os.path.join(os.getcwd(), FILENAME),                              # CWD
+        os.path.join(os.getcwd(), "backend", FILENAME),
+    ]
+    for p in candidates:
+        norm = os.path.normpath(p)
+        if os.path.exists(norm):
+            return norm
+
+    # Return the repo-root path as the default (will error clearly if missing)
+    return os.path.normpath(candidates[2])
+
+EXCEL_PATH = _find_excel()
 
 
 def load_all(db: Session, excel_path: str = None) -> dict:
