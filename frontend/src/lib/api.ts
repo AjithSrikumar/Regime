@@ -1,4 +1,15 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+/**
+ * All API routes are Next.js Route Handlers (/api/*) — no external backend.
+ * In server components (page.tsx) we use an absolute URL so Next.js can
+ * self-fetch during SSR.  In dev that's http://localhost:3000; in production
+ * Vercel sets VERCEL_URL automatically.
+ */
+function base() {
+  if (typeof window !== "undefined") return ""; // client-side: use relative path
+  // Server-side: need absolute URL
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return `http://localhost:${process.env.PORT ?? 3000}`;
+}
 
 export interface RegimeData {
   date: string;
@@ -103,25 +114,24 @@ export interface AllocationHistoryPoint {
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    next: { revalidate: 300 }, // 5 min cache
-  });
-  if (!res.ok) throw new Error(`API error: ${res.status} ${path}`);
+  const url = `${base()}/api${path}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`API error: ${res.status} ${url}`);
   return res.json();
 }
 
 export const api = {
   regime: {
-    latest: () => fetchJson<RegimeData>("/regime/latest"),
-    history: (days = 90) => fetchJson<RegimeHistoryPoint[]>(`/regime/history?days=${days}`),
-    changes: (limit = 15) => fetchJson<{ date: string; new_regime: string; old_regime: string; score: number }[]>(`/regime/changes?limit=${limit}`),
+    latest: ()             => fetchJson<RegimeData>("/regime/latest"),
+    history: (days = 90)   => fetchJson<RegimeHistoryPoint[]>(`/regime/history?days=${days}`),
+    changes: (limit = 15)  => fetchJson<{ date: string; new_regime: string; old_regime: string; score: number }[]>(`/regime/changes?limit=${limit}`),
   },
   allocation: {
-    latest: () => fetchJson<AllocationData>("/allocation/latest"),
-    history: (days = 365) => fetchJson<AllocationHistoryPoint[]>(`/allocation/history?days=${days}`),
+    latest: ()             => fetchJson<AllocationData>("/allocation/latest"),
+    history: (days = 365)  => fetchJson<AllocationHistoryPoint[]>(`/allocation/history?days=${days}`),
   },
   factors: {
-    latest: () => fetchJson<FactorsData>("/factors/latest"),
+    latest: ()             => fetchJson<FactorsData>("/factors/latest"),
   },
   performance: {
     get: (chartDays = 500) => fetchJson<PerformanceData>(`/performance?chart_days=${chartDays}`),

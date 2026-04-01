@@ -45,41 +45,32 @@ Additional adjustments: volatility targeting (15% annual), meta-momentum, gold b
 
 ```
 Regime/
-├── backend/          # FastAPI (Python)
+├── backend/              # Python — seeding only (not deployed)
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── models.py
-│   │   ├── schemas.py
-│   │   ├── database.py
-│   │   ├── engines/
-│   │   │   ├── factor_engine.py      # Signal computation
-│   │   │   ├── allocation_engine.py  # Position sizing
-│   │   │   └── backtest_engine.py    # Performance metrics
-│   │   ├── routers/
-│   │   │   ├── regime.py
-│   │   │   ├── allocation.py
-│   │   │   ├── factors.py
-│   │   │   └── performance.py
-│   │   └── data_ingestion/
-│   │       └── excel_loader.py       # Seeds DB from Excel
+│   │   ├── engines/      # factor, allocation, backtest engines
+│   │   └── data_ingestion/excel_loader.py
 │   └── requirements.txt
-├── frontend/         # Next.js 16 (TypeScript)
+├── frontend/             # Next.js 16 — deployed to Vercel
 │   ├── src/
 │   │   ├── app/
-│   │   │   └── page.tsx              # Main dashboard
-│   │   ├── components/
-│   │   │   ├── RegimeHero.tsx        # Regime indicator + allocation
-│   │   │   ├── SignalBreakdown.tsx   # 4-signal cards
-│   │   │   ├── PerformanceSummary.tsx
-│   │   │   ├── PerformanceChart.tsx  # NAV chart (Recharts)
-│   │   │   ├── RegimeHistory.tsx
-│   │   │   └── AllocationHistory.tsx
+│   │   │   ├── page.tsx              # Server component dashboard
+│   │   │   └── api/                  # Route Handlers (no external server)
+│   │   │       ├── regime/latest|history|changes
+│   │   │       ├── allocation/latest|history
+│   │   │       ├── factors/latest
+│   │   │       ├── performance
+│   │   │       └── dashboard
+│   │   ├── components/               # UI components
 │   │   └── lib/
-│   │       ├── api.ts                # API client
+│   │       ├── api.ts                # Calls /api/* route handlers
+│   │       ├── supabase.ts           # Server-side Supabase client
 │   │       └── utils.ts
 │   └── vercel.json
-├── NSE_RegimeModel_v2.xlsx           # Source model
-└── start.sh                          # Dev startup script
+├── supabase_seed/        # One-time DB seeding (run locally once)
+│   ├── schema.sql        # Run in Supabase SQL Editor
+│   ├── seed_supabase.py  # Run locally to populate DB
+│   └── *.csv             # Pre-exported data files
+└── NSE_RegimeModel_v2.xlsx
 ```
 
 ---
@@ -101,26 +92,24 @@ Regime/
 ## Quick Start
 
 ### Prerequisites
-- Python 3.11+
+- Python 3.11+ (seeding only)
 - Node.js 18+
 
-### Run locally
+### 1. Create tables in Supabase
+Paste `supabase_seed/schema.sql` into the Supabase SQL Editor and run it.
 
+### 2. Seed the database (run once)
 ```bash
-# Clone and start everything
-./start.sh
+pip install psycopg2-binary
+export DATABASE_URL="postgresql://postgres.xxx:PASSWORD@aws-1-....supabase.com:6543/postgres"
+python3 supabase_seed/seed_supabase.py
 ```
 
-Or manually:
-
+### 3. Run the frontend locally
 ```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-
-# Frontend (new terminal)
 cd frontend
+cp .env.example .env.local
+# Fill in NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
 npm install
 npm run dev
 ```
@@ -148,9 +137,14 @@ GET /dashboard          All data in one call
 
 ## Deployment
 
-- **Frontend**: Vercel (connect `frontend/` directory)
-- **Backend**: Railway or Render (connect `backend/` directory)
-- **Database**: Supabase PostgreSQL (set `DATABASE_URL` env var)
+**Stack: Vercel + Supabase only. No separate backend server.**
+
+1. Seed Supabase: run `schema.sql` in SQL Editor, then `seed_supabase.py` locally
+2. **Vercel** — connect `frontend/` directory; set env vars:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+
+API routes run as Vercel Serverless Functions — zero infra to maintain.
 
 ---
 
