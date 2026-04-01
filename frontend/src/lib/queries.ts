@@ -8,7 +8,7 @@ import { getSupabase } from "./supabase";
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export type RegimeData = {
-  date: string; regime: string; regime_score: number; confidence: number;
+  date: string; regime: "Risk ON" | "Neutral" | "Risk OFF"; regime_score: number; confidence: number;
   prev_regime: string | null; regime_changed: boolean;
   nifty: number | null; vix: number | null; gsec_10y: number | null;
 };
@@ -23,7 +23,7 @@ export type FactorsData = {
   liq_signal: number; dual_mom_signal: number; regime_score: number;
   insights: Insight[];
 };
-export type Insight = { signal: string; status: string; label: string; description: string };
+export type Insight = { signal: string; status: "bullish" | "bearish" | "warning"; label: string; description: string };
 export type PerformanceMetrics = {
   strategy_cagr: number; benchmark_cagr: number; gold_cagr: number;
   annual_vol: number; sharpe_ratio: number; max_drawdown: number;
@@ -130,9 +130,10 @@ export async function queryRegimeLatest(): Promise<RegimeData> {
   const { data: r } = await sb.from("regime")
     .select("date,regime,regime_score,confidence,prev_regime,regime_changed")
     .order("date", { ascending: false }).limit(1).single();
+  if (!r) throw new Error("No regime data");
   const { data: md } = await sb.from("market_data")
     .select("nifty,vix,gsec_10y").eq("date", r.date).single();
-  return { ...r, nifty: md?.nifty ?? null, vix: md?.vix ?? null, gsec_10y: md?.gsec_10y ?? null };
+  return { ...r, regime: r.regime as RegimeData["regime"], nifty: md?.nifty ?? null, vix: md?.vix ?? null, gsec_10y: md?.gsec_10y ?? null };
 }
 
 export async function queryRegimeHistory(days = 90): Promise<RegimeHistoryPoint[]> {
@@ -158,10 +159,11 @@ export async function queryAllocationLatest(): Promise<AllocationData> {
   const { data: a } = await sb.from("allocation")
     .select("date,dd_adj_mom_weight,dd_adj_gold_weight")
     .order("date", { ascending: false }).limit(1).single();
+  if (!a) throw new Error("No allocation data");
   const { data: reg } = await sb.from("regime").select("regime").eq("date", a.date).single();
   const eq  = +((a.dd_adj_mom_weight  ?? 0) * 100).toFixed(1);
   const gld = +((a.dd_adj_gold_weight ?? 0) * 100).toFixed(1);
-  const rl  = reg?.regime ?? "Risk OFF";
+  const rl  = (reg?.regime ?? "Risk OFF") as AllocationData["regime"];
   return { date: a.date, regime: rl, equity_pct: eq, gold_pct: gld,
            debt_pct: +Math.max(0, 100 - eq - gld).toFixed(1), description: allocDesc(eq, gld, rl) };
 }
@@ -183,6 +185,7 @@ export async function queryAllocationHistory(days = 365): Promise<AllocationHist
 export async function queryFactorsLatest(): Promise<FactorsData> {
   const sb = getSupabase();
   const { data: f } = await sb.from("factors").select("*").order("date", { ascending: false }).limit(1).single();
+  if (!f) throw new Error("No factors data");
   const { data: md } = await sb.from("market_data").select("nifty,vix,gsec_10y").eq("date", f.date).single();
   return {
     date: f.date, nifty: md?.nifty ?? null, nifty_200dma: f.nifty_200dma,
