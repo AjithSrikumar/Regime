@@ -46,7 +46,7 @@ export default async function Home() {
             <p>2. Run seeder: <code style={{color:"#60a5fa"}}>node supabase_seed/seed_supabase.js "postgresql://..."</code></p>
             <p>3. Vercel → Settings → Environment Variables → add:</p>
             <p className="pl-4"><code style={{color:"#60a5fa"}}>NEXT_PUBLIC_SUPABASE_URL</code></p>
-            <p className="pl-4"><code style={{color:"#60a5fa"}}>SUPABASE_SERVICE_ROLE_KEY</code></p>
+            <p className="pl-4"><code style={{color:"#60a5fa"}}>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></p>
             <p>4. Vercel → Deployments → Redeploy</p>
           </div>
         </main>
