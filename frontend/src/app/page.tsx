@@ -1,4 +1,12 @@
-import { api } from "@/lib/api";
+import {
+  queryRegimeLatest,
+  queryAllocationLatest,
+  queryFactorsLatest,
+  queryPerformance,
+  queryRegimeHistory,
+  queryAllocationHistory,
+  queryRegimeChanges,
+} from "@/lib/queries";
 import Navbar from "@/components/Navbar";
 import RegimeHero from "@/components/RegimeHero";
 import SignalBreakdown from "@/components/SignalBreakdown";
@@ -15,13 +23,13 @@ export default async function Home() {
   try {
     [regime, allocation, factors, performance, regimeHistory, allocHistory, regimeChanges] =
       await Promise.all([
-        api.regime.latest(),
-        api.allocation.latest(),
-        api.factors.latest(),
-        api.performance.get(500),
-        api.regime.history(90),
-        api.allocation.history(252),
-        api.regime.changes(15),
+        queryRegimeLatest(),
+        queryAllocationLatest(),
+        queryFactorsLatest(),
+        queryPerformance(500),
+        queryRegimeHistory(90),
+        queryAllocationHistory(252),
+        queryRegimeChanges(15),
       ]);
   } catch (err: any) {
     return (
